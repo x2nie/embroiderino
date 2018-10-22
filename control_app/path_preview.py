@@ -83,10 +83,14 @@ class ResizingCanvas(Canvas):
         current_color = "black"
         color = current_color
         for point in points[1:]:
-            if "G0" in point[0]:
+            if "G0" == point[0]:
                 color = "snow2"
-            elif "M6" in point[0]:
+            elif "M6" == point[0]:
                 current_color = _from_rgb((point[1], point[2], point[3]))
+                color = current_color
+                continue
+            # commands other than G0, G1, G28 or M6 are ignored for drawing a preview
+            elif "G1" != point[0] and "G28" != point[0]:
                 continue
             coord = (last_point[1], last_point[2], point[1], point[2])
             last_point = point
@@ -99,7 +103,7 @@ class ResizingCanvas(Canvas):
 def translate_toolpath(points, translate=(0,0)):
     #new_points = copy.deepcopy(points)
     for point in points:
-        if not ("G0" in point[0] or "G1" in point[0]):
+        if not ("G0" == point[0] or "G1" == point[0]):
             continue
         point[1] += translate[0]
         point[2] += translate[1]
@@ -107,7 +111,7 @@ def translate_toolpath(points, translate=(0,0)):
 
 def rotate_toolpath(points, origin, theta):
     for point in points:
-        if not ("G0" in point[0] or "G1" in point[0]):
+        if not ("G0" == point[0] or "G1" == point[0]):
             continue
         point[1], point[2] = rotate(point[1:3], origin, theta)
     return points
@@ -127,21 +131,21 @@ def rotate(point, origin, angle):
 
 def reflect_toolpath(points, d):
     for point in points:
-        if not ("G0" in point[0] or "G1" in point[0]):
+        if not ("G0" == point[0] or "G1" == point[0]):
             continue
         point[1] = 2*d - point[1]
     return points
     
 def scale_toolpath(points, f):
     for point in points:
-        if not ("G0" in point[0] or "G1" in point[0]):
+        if not ("G0" == point[0] or "G1" == point[0]):
             continue
         point[1] += point[1]*f 
         point[2] += point[2]*f
     return points
 
 def toolpath_border_points(points):
-    points = [elem for elem in points if "G0" in elem[0] or "G1" in elem[0]]
+    points = [elem for elem in points if "G0" == elem[0] or "G1" == elem[0]]
     x_max = max(points,key=itemgetter(1))[1]
     x_min = min(points,key=itemgetter(1))[1]
     y_max = max(points,key=itemgetter(2))[2]
@@ -155,12 +159,12 @@ def toolpath_info(points):
     tool_changes = 0
     distances = []
     for point in points:
-        if not ("G0" in point[0] or "G1" in point[0]):
-            if "M6" in point[0]:
+        if not ("G0" == point[0] or "G1" == point[0]):
+            if "M6" == point[0]:
                 tool_changes += 1
                 distances.append(total_distance)
             continue
-        if last_point:
+        if last_point and "G1" == point[0]:
             total_distance += math.hypot(point[1] - last_point[1], point[2] - last_point[2])
         last_point = point
     distances.append(total_distance)
@@ -178,6 +182,8 @@ def load_csv_file(csvfile, offset=(0,0)):
     command = "G0"
     commands = [("G28",0,0)]
     colors = []
+    last_color = None
+    current_color = None
     # load each point into commands list
     for row in reader:
         # empyt row
@@ -191,12 +197,15 @@ def load_csv_file(csvfile, offset=(0,0)):
             elif 'COLOR' in row[1]:
                 command = "M6"
                 if len(colors) > 0:
-                    r, g, b = colors.pop(0)
+                    current_color = colors.pop(0)
                 else:
-                    r = g = b = 0
-                commands.append([command, r, g, b])
+                    current_color = (0,0,0)
+                # colors are truly different
+                if current_color != last_color:
+                    commands.append([command, *current_color])
+                last_color = current_color
                 continue
-            elif 'TRIMM' in row[1]:
+            elif 'TRIM' in row[1]:
                 command = "G12"
                 commands.append([command, ])
                 continue
@@ -247,9 +256,9 @@ def load_gcode_file(f):
 
 def save_gcode_file(f, commands):
     for command in commands:
-        if "M6" in command[0]:
+        if "M6" == command[0]:
             command = "%s R%d G%d B%d\n" % (command[0], command[1], command[2], command[3])
-        elif "G0" in command[0] or "G1" in command[0]:
+        elif "G0" == command[0] or "G1" == command[0]:
             if len(command) > 3:
                 command = "%s X%f Y%f F%f\n" % (command[0], command[1], command[2], command[3])
             else:

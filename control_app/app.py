@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-from tkinter import Tk, Label, Button, Entry, Menu, filedialog, messagebox, colorchooser, Canvas, Frame, LabelFrame, Scale, Toplevel, PhotoImage
+from tkinter import Tk, Label, Button, Checkbutton, Entry, Menu, filedialog, messagebox, colorchooser, Canvas, Frame, LabelFrame, Scale, Toplevel, PhotoImage, IntVar
 from tkinter.font import Font
 import tkinter.ttk as ttk
 from tkinter import LEFT, TOP, BOTTOM, N, YES, W,SUNKEN,X, HORIZONTAL, DISABLED, NORMAL, RAISED, FLAT, RIDGE, END
@@ -8,6 +8,7 @@ from path_preview import ResizingCanvas, load_gcode_file, save_gcode_file, load_
 from collections import namedtuple
 import copy, re, math, time, pickle
 
+#import control_serial_mockup as serial
 import control_serial as serial
 
 class ControlAppGUI:
@@ -87,6 +88,15 @@ class ControlAppGUI:
         
         self.stopButton = Button(tab1, text="STOP", command=self.StopAll, state=DISABLED)
         self.stopButton.grid(row=4,column=0)
+        
+        self.pauseOnToolChange = IntVar()
+        self.pauseOnTrim = IntVar()
+        self.toolChangeCheck = Checkbutton(tab1, variable=self.pauseOnToolChange, onvalue=1, offvalue=0, text="Pause on tool change")
+        self.toolChangeCheck.grid(row=4,column=1)
+        self.toolChangeCheck.select()
+        self.trimCheck = Checkbutton(tab1, variable=self.pauseOnTrim, onvalue=1, offvalue=0, text="Pause on trim")
+        self.trimCheck.grid(row=4,column=2)
+        self.trimCheck.select()
         
         progressFrame = Frame(tab1)
         Label(progressFrame, text="Tool changes: ", bd=1).grid(row=0,column=0)
@@ -211,11 +221,11 @@ class ControlAppGUI:
         self.toolPointsTotal, self.toolChangesTotal, self.distancesList = toolpath_info(self.commands)
         self.toolPointsLabel.config(text="%d/%d" % (self.currentToolPoint, self.toolPointsTotal))
         self.toolChangesLabel.config(text="%d/%d" % (self.currentToolChange, self.toolChangesTotal))
-        self.timeLabel.config(text="%d/%d" % (self.distancesList[self.currentToolChange]- self.distanceTraveled, self.distancesList[-1]-self.distanceTraveled))
+        self.UpdateTimeEstLabel()
         self.canvas.draw_toolpath(self.commands)
     
     def About(self):
-        #self.ToolChangePopup()
+        #self.PausePopup()
         messagebox.showinfo('About this software', 'This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or any later version.\n\nThis program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.\n\nWritten in 2018 by markol.')
     def Settings(self):
         tl = Toplevel(root)
@@ -267,7 +277,7 @@ class ControlAppGUI:
                 data = {"workAreaSize": self.workAreaSize}
                 pickle.dump(data, f)
             except Exception as e:
-                print ("error while saving settings:", str(e))
+                print ("Error while saving settings:", str(e))
             
     def ToggleConnect(self):
         if self.isConnected:
@@ -294,6 +304,7 @@ class ControlAppGUI:
         rectangle = toolpath_border_points(self.commands[1:])
         for point in rectangle:
             serial.queue_command("G0 X%f Y%f F5000\n" % point)
+    
     def ToggleStart(self):
         if self.isJobPaused:
             serial.queue.clear()
@@ -308,51 +319,83 @@ class ControlAppGUI:
                 self.canvas.clear()
                 startInstructionIndex = 0
                 self.start = time.time()
-            # after every move command being sent, this callback is executed
-            def progressCallback(instruction_index):
-                point = self.commands[instruction_index]
-                if self.lastMove:                       
-                    coord = (self.lastMove[1], self.lastMove[2], point[1], point[2])
-                    color = self.currentColor
-                    # set color for jump move
-                    if "G0" in point[0]:
-                        color = "snow2"
-                    else:
-                        self.currentToolPoint += 1
-                        self.toolPointsLabel.config(text="%d/%d" % (self.currentToolPoint, self.toolPointsTotal))
-                    self.distanceTraveled += math.hypot(coord[0] - coord[2], coord[1] - coord[3])
-                    line = self.canvas.create_line(self.canvas.calc_coords(coord), fill=color)
-                    self.canvas.lift(self.canvas.pointer, line)
-                    self.timeLabel.config(text="%d/%d" % (self.distancesList[self.currentToolChange]- self.distanceTraveled, self.distancesList[-1]-self.distanceTraveled))
-                self.lastSendCommandIndex = instruction_index
-                self.lastMove = point
-            
-            # this callback pauses 
-            def progressToolChangeCallback(instruction_index):
-                point = self.commands[instruction_index]
-                self.lastSendCommandIndex = instruction_index
-                self.currentColor = _from_rgb((point[1], point[2], point[3]))
-                self.ToggleStart()
-                self.currentToolChange += 1
-                self.toolChangesLabel.config(text="%d/%d" % (self.currentToolChange, self.toolChangesTotal))
-                self.ToolChangePopup(self.currentColor)
                 
             self.isJobRunning = True
-            commandsCount = len(self.commands)
-            # all the commands until tool change command, are queued at once
-            for i in range(startInstructionIndex, commandsCount):
-                point = self.commands[i]
-                # pause on color change
-                if "M6" in point[0]:
-                    serial.queue_command("G0 F25000\n", lambda _, index = i: progressToolChangeCallback(index))
-                    break
-                else:
-                    serial.queue_command("%s X%f Y%f\n" % (point[0],point[1], point[2]), lambda _, index = i: progressCallback(index))
-            # queue job finish callback, it is unnecessary added after every pause but is cleaned in pause callback
-            serial.queue_command("M114\n", self.JobFinished)
+            self.QueueCommandsBlock(startInstructionIndex)
             
         self.isJobPaused = not self.isJobPaused
             
+    def QueueCommandsBlock(self, startInstructionIndex):
+        commandsCount = len(self.commands)
+            
+        def progressCallback(instruction_index):
+            ''' after every move G0 or G1 or G28 command being sent, this callback is executed '''
+            point = self.commands[instruction_index]
+            if self.lastMove:                       
+                coord = (self.lastMove[1], self.lastMove[2], point[1], point[2])
+                color = self.currentColor
+                # set color for jump move
+                if "G0" == point[0] or "G28" == point[0]:
+                    color = "snow2"
+                else:
+                    self.currentToolPoint += 1
+                    self.toolPointsLabel.config(text="%d/%d" % (self.currentToolPoint, self.toolPointsTotal))
+                    # calculate distance for material usage
+                    self.distanceTraveled += math.hypot(coord[0] - coord[2], coord[1] - coord[3])
+                # draw new line on canvas
+                line = self.canvas.create_line(self.canvas.calc_coords(coord), fill=color)
+                self.canvas.lift(self.canvas.pointer, line)
+                self.UpdateTimeEstLabel()
+            # store next start point and instruction index 
+            self.lastSendCommandIndex = instruction_index
+            self.lastMove = point
+        
+        def progressPauseCallback(instruction_index, trim = False):
+            ''' this callback pauses the job '''
+            point = self.commands[instruction_index]
+            self.lastSendCommandIndex = instruction_index
+            # pause on color change
+            if not trim:
+                self.currentColor = _from_rgb((point[1], point[2], point[3]))
+                self.currentToolChange += 1
+                self.toolChangesLabel.config(text="%d/%d" % (self.currentToolChange, self.toolChangesTotal))
+                # pause enabled or not
+                if self.pauseOnToolChange.get() == 1:
+                    self.ToggleStart()
+                    self.PausePopup(self.currentColor)
+                else:
+                    self.QueueCommandsBlock(self.lastSendCommandIndex + 1)
+            # pause on trim
+            else:
+                # pause enabled or not
+                if self.pauseOnTrim.get() == 1:
+                    self.ToggleStart()
+                    self.PausePopup(self.currentColor, trim)
+                else:
+                    self.QueueCommandsBlock(self.lastSendCommandIndex + 1)
+        
+        # all the commands until next tool change command, are queued at once
+        # unsupported commands are ignored
+        for i in range(startInstructionIndex, commandsCount):
+            point = self.commands[i]
+            # pause on color change
+            if "M6" == point[0]:
+                serial.queue_command("M6\n", lambda _, index = i: progressPauseCallback(index))
+                break
+            # pause on trim
+            elif "G12" == point[0]:
+                # if next command is a color change, there is no need to pause now
+                if i < commandsCount + 1 and self.commands[i+1][0] == "M6" and self.pauseOnToolChange.get() == 1:
+                    serial.queue_command("G12\n")
+                else:
+                    serial.queue_command("G12\n", lambda _, index = i: progressPauseCallback(index, trim = True))
+                    break
+            elif "G1" == point[0] or "G0" == point[0] or "G28" == point[0]:
+                serial.queue_command("%s X%f Y%f\n" % (point[0],point[1], point[2]), lambda _, index = i: progressCallback(index))
+        # queue job finish callback
+        if i + 1 >= commandsCount:
+            serial.queue_command("M114\n", self.JobFinished)
+        
     def SetNavButtonsState(self, enabled = False):
         newState = NORMAL if enabled else DISABLED
         for b in self.navigationButtons:
@@ -416,14 +459,17 @@ class ControlAppGUI:
         self.currentColor = 'black'
         self.toolPointsLabel.config(text="%d/%d" % (self.currentToolPoint, self.toolPointsTotal))
         self.toolChangesLabel.config(text="%d/%d" % (self.currentToolChange, self.toolChangesTotal))
-        self.timeLabel.config(text="%d/%d" % (self.distancesList[self.currentToolChange]- self.distanceTraveled, self.distancesList[-1]-self.distanceTraveled))
+        self.UpdateTimeEstLabel()
         self.startButton.config(text="Start job")
         self.status.config(text="Job finished")
         timeTaken = time.time() - self.start
         # non blocking popup messagebox
         if messagePopup:
             tl = Toplevel(root)
+            # this pop-up is always on top and other windows are deactivated
+            tl.attributes('-topmost', 'true')
             tl.title("Job finished")
+            tl.grab_set()
             frame = Frame(tl)
             frame.grid()
             Label(frame, text='Current job is finished and took %s.' % time.strftime("%H hours, %M minutes, %S seconds", time.gmtime(timeTaken)) ).grid(row=0, column=0, sticky=N)
@@ -476,6 +522,12 @@ class ControlAppGUI:
         if self.isJobRunning:
             return
         self.canvas.draw_toolpath(self.commands[0:int(val)])
+    def UpdateTimeEstLabel(self):
+        # avg milimeters per second factor
+        factor = 11.0
+        time_to_toolchange = (self.distancesList[self.currentToolChange]- self.distanceTraveled) / factor
+        time_total = (self.distancesList[-1]-self.distanceTraveled) / factor
+        self.timeLabel.config(text="%d m %d s/%d m %d s" % (time_to_toolchange / 60, time_to_toolchange % 60, time_total / 60, time_total % 60))
     def GetPositionTimerTaks(self):
         if self.isConnected:
            def TimerCallback(response):
@@ -490,28 +542,28 @@ class ControlAppGUI:
     def CleanUp(self):
         serial.close_serial()
         
-    def ToolChangePopup(self, newColor = "black"):
+    def PausePopup(self, newColor = "black", trim = False):
         tl = Toplevel(root)
+        tl.attributes('-topmost', 'true')
+        tl.grab_set()
+        
         tl.title("Tool change")
+        msg = "change the tool for a next color"
+        if trim:
+            tl.title("Thread trim")
+            msg = "cut the thread"
 
         frame = Frame(tl)
         frame.grid()
 
-        canvas = Canvas(frame, width=100, height=130)
-        canvas.grid(row=1, column=0)
-        #imgvar = PhotoImage(file="pyrocket.png")
-        #canvas.create_image(50,70, image=imgvar)
-        #canvas.image = imgvar
-
-        msgbody1 = Label(frame, text="There is time to change tool for a " )
-        msgbody1.grid(row=1, column=1, sticky=N)
-        lang = Label(frame, text="next color", font=Font(size=20, weight="bold"), fg=newColor)
-        lang.grid(row=1, column=2, sticky=N)
-        msgbody2 = Label(frame, text="Resume the current job after change.")
-        msgbody2.grid(row=1, column=3, sticky=N)
+        canvas = Canvas(frame, width=64, height=64)
+        canvas.grid(row=2, column=0)
+        canvas.create_rectangle(0, 0, 65, 65, fill=newColor)
+        msgbody = Label(frame, text="There is the moment to %s. Resume the current job after change." % msg)
+        msgbody.grid(row=1, column=0, sticky=N)
 
         okbttn = Button(frame, text="OK", command=lambda: tl.destroy(), width=10)
-        okbttn.grid(row=2, column=4)
+        okbttn.grid(row=2, column=2)
 
 root = Tk()
 my_gui = ControlAppGUI(root)

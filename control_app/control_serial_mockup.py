@@ -60,7 +60,7 @@ def send_serial(msg, responseCallback = None):
     global last_pos
     response = "ok\n"
     if "M114" in msg:
-        response = "X%f Y%f\nok\n" % (last_pos[0],last_pos[1])
+        response = "X:%f,Y:%f\nok\n" % (last_pos[0],last_pos[1])
     if "G0" in msg or "G1" in msg:
         regex_result = gcode_regexX.search(msg)
         if regex_result:
