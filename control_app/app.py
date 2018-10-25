@@ -33,6 +33,12 @@ class ControlAppGUI:
         filemenu.add_cascade(label="Save...", menu=savemenu, underline=0)
         filemenu.add_command(label="Set color", command=self.AskColor)
         filemenu.add_separator()
+        def updatePortList():
+            ports = serial.serial_ports()
+            self.portCombo['values'] = ports
+            if len(ports) > 0:
+                self.portCombo.current(0)
+        filemenu.add_command(label="Refresh port list", command=updatePortList)
         filemenu.add_command(label="Exit", command=self.Quit)
 
         editmenu = Menu(self.menu)
@@ -54,8 +60,10 @@ class ControlAppGUI:
         self.controls.grid_columnconfigure(0, weight=1)
         
         # MACHINE TAB
-        self.portCombo = ttk.Combobox(tab1,  values=serial.serial_ports())
-        self.portCombo.current(0)
+        ports = serial.serial_ports()
+        self.portCombo = ttk.Combobox(tab1,  values=ports)
+        if len(ports) > 0:
+            self.portCombo.current(0)
         self.portCombo.grid(row=1,column=0)
         self.baudCombo = ttk.Combobox(tab1,state='readonly',  values=("115200", "9600"), width=10)
         self.baudCombo.current(0)
@@ -97,7 +105,7 @@ class ControlAppGUI:
         self.trimCheck = Checkbutton(tab1, variable=self.pauseOnTrim, onvalue=1, offvalue=0, text="Pause on trim")
         self.trimCheck.grid(row=4,column=2)
         self.trimCheck.select()
-        
+                
         progressFrame = Frame(tab1)
         Label(progressFrame, text="Tool changes: ", bd=1).grid(row=0,column=0)
         self.toolChangesLabel = Label(progressFrame, text="0/0", bd=1, relief=SUNKEN)
@@ -111,6 +119,12 @@ class ControlAppGUI:
         self.timeLabel = Label(progressFrame, text="0/0", bd=1, relief=SUNKEN)
         self.timeLabel.grid(row=1,column=4)
         progressFrame.grid(row=5,column=0, columnspan=3)
+        
+        Label(tab1, text="SPM speed limit: ", bd=1).grid(row=6, column=0)
+        self.speedSlider = Scale(tab1, from_=80, to=800, command=None, orient=HORIZONTAL,length=200)
+        self.speedSlider.set(400)
+        self.speedSlider.bind("<ButtonRelease-1>", lambda _: serial.queue_command("M222 S%d\n" % self.speedSlider.get(), priority = -1))
+        self.speedSlider.grid(row=6, column=1, columnspan=2)
 
         # PATH TAB
         tab2.grid_columnconfigure(0, weight=1)
@@ -172,6 +186,8 @@ class ControlAppGUI:
     def Quit(self):
         if messagebox.askyesno('Confirm', 'Really quit?'):
             self.master.quit()
+            return True
+        return False
     def AskColor(self):
         color = colorchooser.askcolor(title = "Colour Chooser")
     def NewFile(self):
@@ -212,10 +228,15 @@ class ControlAppGUI:
             self.startButton.config(state=NORMAL)
             # center loaded path
             rectangle = toolpath_border_points(self.commands[1:])
-            center = (rectangle[2][0] - (rectangle[2][0] - rectangle[0][0])/2, rectangle[2][1] - (rectangle[2][1] - rectangle[0][1])/2)
+            rwidth = rectangle[2][0] - rectangle[0][0]
+            rheight = rectangle[2][1] - rectangle[0][1]
+            center = (rectangle[2][0] - (rwidth)/2, rectangle[2][1] - (rheight)/2)
             transform = (self.workAreaSize[0]/2 - center[0], self.workAreaSize[1]/2 - center[1])
-            self.commands = translate_toolpath(self.commands, transform)
-            
+            self.commands = translate_toolpath(self.commands, transform)        
+            # check if  design is bigger than available workarea
+            if(rwidth > self.workAreaSize[0] or rheight > self.workAreaSize[1]):
+                messagebox.showinfo('Size Warning!', "Looks like this design is bigger than available work area.")
+                
         self.slider.config(to=points_count)
         self.slider.set(points_count)
         self.toolPointsTotal, self.toolChangesTotal, self.distancesList = toolpath_info(self.commands)
@@ -319,6 +340,7 @@ class ControlAppGUI:
                 self.canvas.clear()
                 startInstructionIndex = 0
                 self.start = time.time()
+                serial.queue_command("G0 F15000\n")
                 
             self.isJobRunning = True
             self.QueueCommandsBlock(startInstructionIndex)
@@ -349,6 +371,11 @@ class ControlAppGUI:
             # store next start point and instruction index 
             self.lastSendCommandIndex = instruction_index
             self.lastMove = point
+            
+            # update status bar
+            if self.currentToolPoint % 10 == 0:
+                progress = instruction_index / commandsCount * 100
+                self.status.config(text="Job in progress %.1f%%" % progress)
         
         def progressPauseCallback(instruction_index, trim = False):
             ''' this callback pauses the job '''
@@ -568,8 +595,9 @@ class ControlAppGUI:
 root = Tk()
 my_gui = ControlAppGUI(root)
 def on_closing():
-    my_gui.CleanUp()
-    root.destroy()
+    if my_gui.Quit():
+        my_gui.CleanUp()
+        root.destroy()
     
 root.protocol("WM_DELETE_WINDOW", on_closing)
 
