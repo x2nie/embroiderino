@@ -12,6 +12,8 @@ class ResizingCanvas(Canvas):
         self.width = self.winfo_reqwidth()
         self.setArea(area_width, area_height)
         self.pointer = self.create_oval(0, 0, 4, 4)
+        self.origin_x = 0
+        self.origin_y = 0
         
     def setArea(self, area_width, area_height):
         self.aspect_ratio = area_width / area_height
@@ -21,7 +23,9 @@ class ResizingCanvas(Canvas):
         self.height_ratio = self.height / self.area_height
         self.width_ratio = self.width / self.area_width
         
-        
+    def setOrigin(self, origin_x, origin_y):    
+        self.origin_x = origin_x
+        self.origin_y = origin_y
 
     def on_resize(self,event):
         # start by using the width as the controlling dimension
@@ -56,33 +60,35 @@ class ResizingCanvas(Canvas):
     # gcode coordinates into canvas coords
     # takes tuple (x1, y1, x2, y2)
     def calc_coords(self, coords):
-        x1 = coords[0]*self.width_ratio
-        y1 = self.height - coords[1]*self.height_ratio
-        x2 = coords[2]*self.width_ratio
-        y2 = self.height - coords[3]*self.height_ratio
+        x1 = (coords[0] - self.origin_x) * self.width_ratio
+        y1 = self.height - (coords[1] - self.origin_y)*self.height_ratio
+        x2 = (coords[2] - self.origin_x) * self.width_ratio
+        y2 = self.height - (coords[3] - self.origin_y) * self.height_ratio
         return int(x1), int(y1), int(x2), int(y2)
     
     def canvas_vector_to_machine(self, point):
         return (-point[0]/self.width_ratio, point[1]/self.height_ratio)
     def canvas_point_to_machine(self, point):
-        return (point[0]/self.width_ratio, (self.height - point[1])/self.height_ratio)
+        return (point[0]/self.width_ratio + self.origin_x, (self.height - point[1])/self.height_ratio + self.origin_y)
     
     def machine_point_to_canvas(self, point):
-        return (point[0]*self.width_ratio, self.height - point[1]*self.height_ratio)
-    # coords is a 2 element tuple (x1, y1)
+        return ((point[0]-self.origin_x) * self.width_ratio, self.height - (point[1] - self.origin_y) * self.height_ratio)
+    
     def move_pointer(self, point):
+        ''' Moves the circle which indicates current machine position.
+            Coords is a 2 element tuple (x1, y1)'''
         x1, y1 = self.machine_point_to_canvas(point)
         self.coords(self.pointer, (x1-2, y1-2, x1+2, y1+2)) # change coordinates
         
-    # takes a list of points as tuples: (x,y,color)
     def draw_toolpath(self, points):
+        ''' Takes a list of points as tuples: (text_command, x,y) '''
         self.clear()
         if(len(points) < 2):
             return
         last_point = points[0]
         current_color = "black"
         color = current_color
-        for point in points[1:]:
+        for point in points:
             if "G0" == point[0]:
                 color = "snow2"
             elif "M6" == point[0]:
@@ -180,7 +186,7 @@ def load_csv_file(csvfile, offset=(0,0)):
     #reader = csv.reader(csvfile, dialect)
     reader = csv.reader(csvfile, delimiter=',')
     command = "G0"
-    commands = [("G28",0,0)]
+    commands = []
     colors = []
     last_color = None
     current_color = None
@@ -269,6 +275,5 @@ def save_gcode_file(f, commands):
     f.close()
 
 def _from_rgb(rgb):
-    """translates an rgb tuple of int to a tkinter friendly color code
-    """
+    """Translates an rgb tuple of int to a tkinter friendly color code """
     return "#%02x%02x%02x" % rgb   

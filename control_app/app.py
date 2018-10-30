@@ -31,6 +31,7 @@ class ControlAppGUI:
         savemenu.add_command(label="CSV", command=self.SaveCsvFile)
         filemenu.add_cascade(label='Open...', menu=openmenu, underline=0)
         filemenu.add_cascade(label="Save...", menu=savemenu, underline=0)
+        #filemenu.add_command(label="Reload current file", command=None)
         filemenu.add_command(label="Set color", command=self.AskColor)
         filemenu.add_separator()
         def updatePortList():
@@ -77,13 +78,13 @@ class ControlAppGUI:
         self.homeButton.grid(row=2,column=0)
         
         testNavigation = Frame(tab1)
-        leftButton = Button(testNavigation, text="<", command=lambda: serial.queue_command("G91\nG0 Y-2\nG90\n"), state=DISABLED)
+        leftButton = Button(testNavigation, text="<", command=lambda: serial.queue_command("G91\nG0 X-2\nG90\n"), state=DISABLED)
         leftButton.grid(row=1,column=0)
-        rightButton = Button(testNavigation, text=">", command=lambda: serial.queue_command("G91\nG0 Y2\nG90\n"), state=DISABLED)
+        rightButton = Button(testNavigation, text=">", command=lambda: serial.queue_command("G91\nG0 X2\nG90\n"), state=DISABLED)
         rightButton.grid(row=1,column=2)
-        upButton = Button(testNavigation, text="/\\", command=lambda: serial.queue_command("G91\nG0 X2\nG90\n"), state=DISABLED)
+        upButton = Button(testNavigation, text="/\\", command=lambda: serial.queue_command("G91\nG0 Y2\nG90\n"), state=DISABLED)
         upButton.grid(row=0,column=1)
-        downButton = Button(testNavigation, text="\\/", command=lambda: serial.queue_command("G91\nG0 X-2\nG90\n"), state=DISABLED)
+        downButton = Button(testNavigation, text="\\/", command=lambda: serial.queue_command("G91\nG0 Y-2\nG90\n"), state=DISABLED)
         downButton.grid(row=2,column=1)
         testNavigation.grid(row=3,column=0)
         self.navigationButtons = [leftButton, rightButton, upButton, downButton]
@@ -177,10 +178,12 @@ class ControlAppGUI:
         self.distanceTraveled = 0
         self.positionResponseRegex = re.compile("X:(\-?\d+\.\d+),Y:(\-?\d+\.\d+)")
         self.workAreaSize = [100,100]
+        self.workAreaOrigin = [0,0]
         
         # LOAD SOME SETTIGS
         self.loadSettings()
         self.canvas.setArea(self.workAreaSize[0], self.workAreaSize[1])
+        self.canvas.setOrigin(self.workAreaOrigin[0], self.workAreaOrigin[1])
         
     # UI LOGIC
     def Quit(self):
@@ -227,11 +230,11 @@ class ControlAppGUI:
             self.testButton.config(state=NORMAL)
             self.startButton.config(state=NORMAL)
             # center loaded path
-            rectangle = toolpath_border_points(self.commands[1:])
+            rectangle = toolpath_border_points(self.commands)
             rwidth = rectangle[2][0] - rectangle[0][0]
             rheight = rectangle[2][1] - rectangle[0][1]
             center = (rectangle[2][0] - (rwidth)/2, rectangle[2][1] - (rheight)/2)
-            transform = (self.workAreaSize[0]/2 - center[0], self.workAreaSize[1]/2 - center[1])
+            transform = (self.workAreaSize[0]/2 - center[0] + self.workAreaOrigin[0], self.workAreaSize[1]/2 - center[1] + self.workAreaOrigin[1])
             self.commands = translate_toolpath(self.commands, transform)        
             # check if  design is bigger than available workarea
             if(rwidth > self.workAreaSize[0] or rheight > self.workAreaSize[1]):
@@ -268,34 +271,57 @@ class ControlAppGUI:
         workareaHeight.delete(0, END)
         workareaHeight.insert(0, str(self.workAreaSize[1]))
         
+        hoopFrame = LabelFrame(frame, text="Machine hoop origin (mm)", relief=RIDGE)
+        hoopFrame.grid()
+        Label(hoopFrame, text="X " ).grid(row=0, column=0, sticky=N)
+        workareaOriginX = Entry(hoopFrame, text="3")
+        workareaOriginX.grid(row=0,column=1)
+        workareaOriginX.delete(0, END)
+        workareaOriginX.insert(0, str(self.workAreaOrigin[0]))
+        Label(hoopFrame, text="Y " ).grid(row=2, column=0, sticky=N)
+        workareaOriginY = Entry(hoopFrame, text="4")
+        workareaOriginY.grid(row=2,column=1)
+        workareaOriginY.delete(0, END)
+        workareaOriginY.insert(0, str(self.workAreaOrigin[1]))
+        Label(hoopFrame, text="Setup name " ).grid(row=3, column=0, sticky=N)
+        setupName = Entry(hoopFrame, text="Setup1")
+        setupName.grid(row=3,column=1)
+        
+        ttk.Combobox(frame,  values=["A", "B"]).grid(row=2, column=0)
+        addSetupButton = Button(frame, relief=RAISED, command=None, text="Add setup").grid(row=2, column=1)
+        rmSetupButton = Button(frame, relief=RAISED, command=None, text="Remove setup").grid(row=2, column=2)
+        
         def saveSettings():
             try:
                 self.workAreaSize = (int(workareaWidth.get()), int(workareaHeight.get()))
+                self.workAreaOrigin = (int(workareaOriginX.get()), int(workareaOriginY.get()))
             except:
                 messagebox.showerror("Invalid numeric values","Please provide correct workarea values!")
                 return
                 
             self.canvas.setArea(self.workAreaSize[0], self.workAreaSize[1])
+            self.canvas.setOrigin(self.workAreaOrigin[0], self.workAreaOrigin[1])
             self.storeSettings()
             TmpDim = namedtuple('TmpDim', 'width height')
             tmp = TmpDim(self.canvas.width, self.canvas.height)
             self.canvas.on_resize(tmp)
             
-        Button(frame, text="Save", command=saveSettings, width=10).grid(row=2, column=3)
-        Button(frame, text="Cancel", command=lambda: tl.destroy(), width=10).grid(row=2, column=2)
+        Button(frame, text="Save", command=saveSettings, width=10).grid(row=3, column=3)
+        Button(frame, text="Cancel", command=lambda: tl.destroy(), width=10).grid(row=3, column=2)
         
     def loadSettings(self):
         try:
             with open(self.SETTINGSFNAME, "rb") as f:
                 data = pickle.load(f)
             self.workAreaSize = data["workAreaSize"]
+            self.workAreaOrigin = data["workAreaOrigin"]
         except Exception as e:
             print ("Unable to restore program settings:", str(e))
         
     def storeSettings(self):
         with open(self.SETTINGSFNAME, "wb") as f:
             try:
-                data = {"workAreaSize": self.workAreaSize}
+                data = {"workAreaSize": self.workAreaSize, "workAreaOrigin": self.workAreaOrigin}
                 pickle.dump(data, f)
             except Exception as e:
                 print ("Error while saving settings:", str(e))
@@ -322,7 +348,7 @@ class ControlAppGUI:
                 self.GetPositionTimerTaks()
 
     def TestBorder(self):
-        rectangle = toolpath_border_points(self.commands[1:])
+        rectangle = toolpath_border_points(self.commands)
         for point in rectangle:
             serial.queue_command("G0 X%f Y%f F5000\n" % point)
     
@@ -451,7 +477,7 @@ class ControlAppGUI:
         self.scaleButton.config(relief=RAISED)
         if self.isJobRunning:
             return
-        self.commands = reflect_toolpath(self.commands, self.workAreaSize[0]/2)
+        self.commands = reflect_toolpath(self.commands, self.workAreaSize[0]/2 + self.workAreaOrigin[0])
         self.canvas.draw_toolpath(self.commands[0:int(self.slider.get())])
     def ToggleScale(self):
         self.panButton.config(relief=RAISED)
@@ -533,7 +559,7 @@ class ControlAppGUI:
         # rotate event
         if self.rotateButton.config('relief')[-1] == SUNKEN:
             angle = math.atan2(vect[0], vect[1]) # atan2(y, x) or atan2(sin, cos)
-            self.commands = rotate_toolpath(self.commands, (self.workAreaSize[0]/2,self.workAreaSize[1]/2), -(self.transform-angle))
+            self.commands = rotate_toolpath(self.commands, (self.workAreaSize[0]/2 + self.workAreaOrigin[0],self.workAreaSize[1]/2 + self.workAreaOrigin[1]), -(self.transform-angle))
             self.canvas.draw_toolpath(self.commands[0:int(self.slider.get())])
             self.transform = angle
         # scale event
