@@ -1,0 +1,244 @@
+EESchema Schematic File Version 2
+LIBS:custom_symbols
+LIBS:power
+LIBS:device
+LIBS:transistors
+LIBS:conn
+LIBS:linear
+LIBS:regul
+LIBS:74xx
+LIBS:cmos4000
+LIBS:adc-dac
+LIBS:memory
+LIBS:xilinx
+LIBS:microcontrollers
+LIBS:dsp
+LIBS:microchip
+LIBS:analog_switches
+LIBS:motorola
+LIBS:texas
+LIBS:intel
+LIBS:audio
+LIBS:interface
+LIBS:digital-audio
+LIBS:philips
+LIBS:display
+LIBS:cypress
+LIBS:siliconi
+LIBS:opto
+LIBS:atmel
+LIBS:contrib
+LIBS:valves
+LIBS:encoder-cache
+EELAYER 25 0
+EELAYER END
+$Descr A4 11693 8268
+encoding utf-8
+Sheet 1 1
+Title "Encoder_board"
+Date ""
+Rev "1"
+Comp ""
+Comment1 ""
+Comment2 ""
+Comment3 ""
+Comment4 ""
+$EndDescr
+$Comp
+L LED D1
+U 1 1 5BD8CD2E
+P 6400 3500
+F 0 "D1" H 6400 3600 50  0000 C CNN
+F 1 "IR_LED" H 6400 3400 50  0000 C CNN
+F 2 "Capacitors_ThroughHole:C_Rect_L4_W2.5_P2.5" H 6400 3500 50  0001 C CNN
+F 3 "" H 6400 3500 50  0000 C CNN
+	1    6400 3500
+	0    -1   -1   0   
+$EndComp
+$Comp
+L CONN_01X04 P1
+U 1 1 5BD8CDB1
+P 4300 4200
+F 0 "P1" H 4300 4450 50  0000 C CNN
+F 1 "CONN_01X04" V 4400 4200 50  0000 C CNN
+F 2 "Pin_Headers:Pin_Header_Straight_1x04" H 4300 4200 50  0001 C CNN
+F 3 "" H 4300 4200 50  0000 C CNN
+	1    4300 4200
+	-1   0    0    1   
+$EndComp
+$Comp
+L R R1
+U 1 1 5BD8D7EA
+P 5050 4400
+F 0 "R1" V 5130 4400 50  0000 C CNN
+F 1 "2-10K" V 4950 4400 50  0000 C CNN
+F 2 "Resistors_ThroughHole:Resistor_Horizontal_RM7mm" V 4980 4400 50  0001 C CNN
+F 3 "" H 5050 4400 50  0000 C CNN
+	1    5050 4400
+	1    0    0    -1  
+$EndComp
+$Comp
+L R R3
+U 1 1 5BD8D87B
+P 6400 3850
+F 0 "R3" V 6480 3850 50  0000 C CNN
+F 1 "150-550R" V 6300 3850 50  0000 C CNN
+F 2 "Resistors_ThroughHole:Resistor_Horizontal_RM7mm" V 6330 3850 50  0001 C CNN
+F 3 "" H 6400 3850 50  0000 C CNN
+	1    6400 3850
+	1    0    0    -1  
+$EndComp
+$Comp
+L GND #PWR01
+U 1 1 5BD8DBD5
+P 6400 4000
+F 0 "#PWR01" H 6400 3750 50  0001 C CNN
+F 1 "GND" H 6400 3850 50  0000 C CNN
+F 2 "" H 6400 4000 50  0000 C CNN
+F 3 "" H 6400 4000 50  0000 C CNN
+	1    6400 4000
+	1    0    0    -1  
+$EndComp
+$Comp
+L VCC #PWR02
+U 1 1 5BD8DDCA
+P 6400 3300
+F 0 "#PWR02" H 6400 3150 50  0001 C CNN
+F 1 "VCC" H 6400 3450 50  0000 C CNN
+F 2 "" H 6400 3300 50  0000 C CNN
+F 3 "" H 6400 3300 50  0000 C CNN
+	1    6400 3300
+	1    0    0    -1  
+$EndComp
+$Comp
+L R R2
+U 1 1 5BD8DF5F
+P 5550 4400
+F 0 "R2" V 5630 4400 50  0000 C CNN
+F 1 "2-10K" V 5450 4400 50  0000 C CNN
+F 2 "Resistors_ThroughHole:Resistor_Horizontal_RM7mm" V 5480 4400 50  0001 C CNN
+F 3 "" H 5550 4400 50  0000 C CNN
+	1    5550 4400
+	1    0    0    -1  
+$EndComp
+$Comp
+L VCC #PWR03
+U 1 1 5BD8E190
+P 4750 3300
+F 0 "#PWR03" H 4750 3150 50  0001 C CNN
+F 1 "VCC" H 4750 3450 50  0000 C CNN
+F 2 "" H 4750 3300 50  0000 C CNN
+F 3 "" H 4750 3300 50  0000 C CNN
+	1    4750 3300
+	1    0    0    -1  
+$EndComp
+$Comp
+L GND #PWR04
+U 1 1 5BD8E62D
+P 5050 4650
+F 0 "#PWR04" H 5050 4400 50  0001 C CNN
+F 1 "GND" H 5050 4500 50  0000 C CNN
+F 2 "" H 5050 4650 50  0000 C CNN
+F 3 "" H 5050 4650 50  0000 C CNN
+	1    5050 4650
+	1    0    0    -1  
+$EndComp
+$Comp
+L C C1
+U 1 1 5BD8EEC4
+P 5950 3450
+F 0 "C1" H 5975 3550 50  0000 L CNN
+F 1 "100n" H 5975 3350 50  0000 L CNN
+F 2 "Capacitors_ThroughHole:C_Disc_D3_P2.5" H 5988 3300 50  0001 C CNN
+F 3 "" H 5950 3450 50  0000 C CNN
+	1    5950 3450
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	5550 3800 5550 4250
+Wire Wire Line
+	5050 3800 5050 4250
+Wire Wire Line
+	5050 4550 5050 4650
+Wire Wire Line
+	5550 4650 5550 4550
+Wire Wire Line
+	4500 4150 5950 4150
+Connection ~ 5050 4650
+Wire Wire Line
+	4500 4250 4850 4250
+Wire Wire Line
+	4850 4250 4850 4650
+Wire Wire Line
+	5300 3300 5300 3950
+Wire Wire Line
+	4850 4650 5550 4650
+Wire Wire Line
+	5300 3950 4750 3950
+Wire Wire Line
+	4750 3300 4750 4350
+Wire Wire Line
+	4750 4350 4500 4350
+Connection ~ 4750 3950
+Wire Wire Line
+	5950 4150 5950 3600
+$Comp
+L VCC #PWR05
+U 1 1 5BD9B2BD
+P 5950 3300
+F 0 "#PWR05" H 5950 3150 50  0001 C CNN
+F 1 "VCC" H 5950 3450 50  0000 C CNN
+F 2 "" H 5950 3300 50  0000 C CNN
+F 3 "" H 5950 3300 50  0000 C CNN
+	1    5950 3300
+	1    0    0    -1  
+$EndComp
+Connection ~ 5550 4150
+Wire Wire Line
+	5050 4050 4500 4050
+Connection ~ 5050 4050
+Wire Wire Line
+	5050 3400 5050 3300
+Wire Wire Line
+	5050 3300 5550 3300
+Wire Wire Line
+	5550 3300 5550 3400
+Connection ~ 5300 3300
+$Comp
+L OPTO_NPN Q1
+U 1 1 5BDC9202
+P 4950 3600
+F 0 "Q1" H 5100 3650 50  0000 L CNN
+F 1 "OPTO_NPN" H 5050 3400 50  0000 L CNN
+F 2 "Capacitors_ThroughHole:C_Disc_D3_P2.5" H 4950 3600 50  0001 C CNN
+F 3 "" H 4950 3600 50  0000 C CNN
+	1    4950 3600
+	1    0    0    -1  
+$EndComp
+$Comp
+L OPTO_NPN Q2
+U 1 1 5BDC923E
+P 5450 3600
+F 0 "Q2" H 5600 3650 50  0000 L CNN
+F 1 "OPTO_NPN" H 5550 3400 50  0000 L CNN
+F 2 "Capacitors_ThroughHole:C_Disc_D3_P2.5" H 5450 3600 50  0001 C CNN
+F 3 "" H 5450 3600 50  0000 C CNN
+	1    5450 3600
+	1    0    0    -1  
+$EndComp
+$Comp
+L C C2
+U 1 1 5BDC9426
+P 4500 3450
+F 0 "C2" H 4525 3550 50  0000 L CNN
+F 1 "100n" H 4525 3350 50  0000 L CNN
+F 2 "Capacitors_ThroughHole:C_Disc_D3_P2.5" H 4538 3300 50  0001 C CNN
+F 3 "" H 4500 3450 50  0000 C CNN
+	1    4500 3450
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	4500 4050 4500 3600
+Wire Wire Line
+	4500 3300 4750 3300
+$EndSCHEMATC
