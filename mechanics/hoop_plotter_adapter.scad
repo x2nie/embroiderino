@@ -7,15 +7,15 @@ totalSpacing = 20;
 rotate([90,0,0])
 difference(){
     union(){
-        translate([totalSpacing-8,-width/2,17]) cube([8,width,8]);
-        translate([0,-width/4,17]) cube([16,width/2,8]);
-        translate([0,-width/2,14]) cube([totalSpacing,width,3]);
+        translate([totalSpacing-8,-width/2,15]) cube([8,width,8]);
+        translate([0,-width/4,15]) cube([16,width/2,8]);
+        translate([0,-width/2,11]) cube([totalSpacing,width,4]);
         translate([0,-width/2,0]) cube([8,width,15]);
     }
     
     for(i=[1,-1])
-        translate([0,i*mountingHolesSpacing/2,21]) rotate([0,90,0]){ 
-                cylinder(r=5.5, h=totalSpacing-4); cylinder(r=mountingHolesDia/2, h=totalSpacing);
+        translate([0,i*mountingHolesSpacing/2,19]) rotate([0,90,0]){ 
+                cylinder(r=6.5, h=totalSpacing-4); cylinder(r=mountingHolesDia/2, h=totalSpacing);
     }
     // tool holder holes
     for(i=[1,-1])

@@ -1,57 +1,65 @@
 use <polyround.scad>;
 
-// NOTE: consider losses on round corners when setting workarea dimensions
-workareaWidth = 130;
-workareaHeight = 150;
-frameHeight = 8;
-innerFrameThickness = 5;
-outerFrameThickness = 9;
+// NOTE: consider losses (presser foot size) on corners when setting workarea dimensions
+// print with infill above 60% for better stiffness
+// this default workarea 130x150 needes 200x200 printer platform space
+hoop(workareaWidth = 130, workareaHeight = 150);
+
+// smaller hoops
+//hoop(workareaWidth = 80, workareaHeight = 100);
+//hoop(workareaWidth = 60, workareaHeight = 80);
+
+
 innerOuterFramesSpacing = 0.5;
 mountingHolesSpacing = 40;
 
-// print with infill above 50% for better stiffness
-// this default workarea 130x150 needes 200x200 printer platform space
-hoop();
-
-module hoop(){
+module hoop(workareaWidth = 130, workareaHeight = 150, frameHeight = 8, innerFrameThickness = 3, outerFrameThickness = 5, roundness = 5, tightenerSpace = 3, sizeOffset = 0, withHandle = true){
     // inner frame
-    innerFrameWidth = workareaWidth+innerFrameThickness;
-    innerFrameHeight = workareaHeight+innerFrameThickness;
+    innerFrameWidth = workareaWidth+innerFrameThickness*2+sizeOffset;
+    innerFrameHeight = workareaHeight+innerFrameThickness*2+sizeOffset;
     linear_extrude(height = 1.5) difference(){
-        roundRectangle(innerFrameWidth, innerFrameHeight, center=true);
+        roundRectangle(innerFrameWidth, innerFrameHeight, roundness, center=true);
         intersection(){
-            roundRectangle(workareaWidth, workareaHeight, center=true);
+            roundRectangle(workareaWidth+sizeOffset, workareaHeight+sizeOffset, roundness, center=true);
             square(size=[workareaWidth, workareaHeight], center=true);
         }
     }
     linear_extrude(height = frameHeight) difference(){
-        roundRectangle(innerFrameWidth, innerFrameHeight, center=true);
-        roundRectangle(workareaWidth, workareaHeight, center=true);
+        roundRectangle(innerFrameWidth, innerFrameHeight, roundness, center=true);
+        roundRectangle(workareaWidth+sizeOffset, workareaHeight+sizeOffset, roundness, center=true);
     }
 
     // outer frame
     spacing = innerOuterFramesSpacing*2;
-    outerFrameWidth = innerFrameWidth+outerFrameThickness+spacing;
-    outerFrameHeight =  innerFrameHeight+outerFrameThickness+spacing;
+    outerFrameWidth = innerFrameWidth+outerFrameThickness*2+spacing;
+    outerFrameHeight =  innerFrameHeight+outerFrameThickness*2+spacing;
     difference(){
     union(){
         linear_extrude(height = frameHeight) difference(){
-            roundRectangle(outerFrameWidth , outerFrameHeight, center=true);
-            roundRectangle(innerFrameWidth+spacing, innerFrameHeight+spacing,   center=true);
+            roundRectangle(outerFrameWidth , outerFrameHeight, roundness, center=true);
+            roundRectangle(innerFrameWidth+spacing, innerFrameHeight+spacing, roundness,  center=true);
     }
     // tightening handle
         // adjust magic number divider to elminate gap between frame and handle
-        translate([-8,outerFrameHeight/28+outerFrameHeight/2,0]) 
+        translate([-9,outerFrameHeight/28+3/roundness+outerFrameHeight/2,0]) 
         difference(){
-        cube([20,12,frameHeight]);
-        //screw hole
-        translate([20,8,frameHeight/2]) rotate([0,-90,0]) {cylinder(r=1.8, h=20); cylinder(r=3.5*0.95, h=3, $fn=6);}
+            tightnWidth = 20+tightenerSpace;
+            cube([tightnWidth ,12,frameHeight]);
+            //screw hole
+            translate([tightnWidth,8,frameHeight/2]) rotate([0,-90,0]) {cylinder(r=1.8, h=tightnWidth+1); cylinder(r=3.5*0.95, h=3, $fn=6);}
+            }
         }
-    }
-    translate([-1,0,0]) cube([2,innerFrameHeight,frameHeight]);
+        translate([-1,0,0]) cube([tightenerSpace,innerFrameHeight,frameHeight]);
     }
     // outer frame handle
-    translate([outerFrameWidth/15+ innerFrameWidth/2,0,0]) {
+    if (withHandle)
+        translate([outerFrameWidth/15+ innerFrameWidth/2,0,0]) {
+            handle(frameHeight);
+        }
+}
+
+module handle(frameHeight)
+{
     difference(){
         union(){
             translate([0,-20,0]) cube([40,40,frameHeight/2]);
@@ -66,15 +74,14 @@ module hoop(){
             translate([0,i*mountingHolesSpacing/2,3+frameHeight/2]) rotate([0,90,0]){ 
             cylinder(r=5.5, h=36); cylinder(r=1.8, h=41);
             }
-        }
     }
 }
 
-module roundRectangle(width=20, height=25, center = false)
+module roundRectangle(width=20, height=25, roundness = 5, center = false)
 {
   // those two values bellow affects roundness of the frames
   divider = 15;
-  cornerR = min([width,height])/5;
+  cornerR = min([width,height])/roundness;
   
   points=[
     [0,                    0,                      cornerR],
@@ -88,10 +95,10 @@ module roundRectangle(width=20, height=25, center = false)
   ];
   
   if(center){
-     translate([-width/2, -height/2,0])  polygon(polyRound(points,5));
+     translate([-width/2, -height/2,0])  polygon(polyRound(points,10));
    }
    else{
-       polygon(polyRound(points,5));
+       polygon(polyRound(points,10));
    }
       
      

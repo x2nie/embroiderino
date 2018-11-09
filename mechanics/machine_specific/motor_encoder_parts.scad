@@ -1,4 +1,4 @@
-encoder_wheel_axial_hole_dia = 9.3;
+encoder_wheel_axial_hole_dia = 9.6;
 encoder_blades_no = 10;
 encoder_wheel_dia = encoder_wheel_axial_hole_dia*1.6 + 10;
 
@@ -49,8 +49,8 @@ module encoder_wheel(){
 module encoder_blade(angle = 10)
 intersection(){
     difference(){
-        cylinder(r=encoder_wheel_dia/2, h = 1);
-        translate([0,-encoder_wheel_dia,0]) cube([encoder_wheel_dia, encoder_wheel_dia*2, 1]);
+        cylinder(r=encoder_wheel_dia/2, h = 2);
+        translate([0,-encoder_wheel_dia,0]) cube([encoder_wheel_dia, encoder_wheel_dia*2, 2]);
     }
-    rotate([0,0,angle]) cube([encoder_wheel_dia, encoder_wheel_dia, 1]);
+    rotate([0,0,angle]) cube([encoder_wheel_dia, encoder_wheel_dia, 2]);
 };
