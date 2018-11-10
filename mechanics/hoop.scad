@@ -13,10 +13,13 @@ hoop(workareaWidth = 130, workareaHeight = 150);
 innerOuterFramesSpacing = 0.5;
 mountingHolesSpacing = 40;
 
-module hoop(workareaWidth = 130, workareaHeight = 150, frameHeight = 8, innerFrameThickness = 3, outerFrameThickness = 5, roundness = 5, tightenerSpace = 3, sizeOffset = 0, withHandle = true){
-    // inner frame
+module hoop(workareaWidth = 130, workareaHeight = 150, frameHeight = 8, innerFrameThickness = 3, outerFrameThickness = 5, roundness = 5, tightenerSpace = 3, sizeOffset = 0, withHandle = true, partsMode = 3)
+{
     innerFrameWidth = workareaWidth+innerFrameThickness*2+sizeOffset;
     innerFrameHeight = workareaHeight+innerFrameThickness*2+sizeOffset;
+    // inner frame
+    if (partsMode == 3 || partsMode == 1)
+    {    
     linear_extrude(height = 1.5) difference(){
         roundRectangle(innerFrameWidth, innerFrameHeight, roundness, center=true);
         intersection(){
@@ -28,8 +31,10 @@ module hoop(workareaWidth = 130, workareaHeight = 150, frameHeight = 8, innerFra
         roundRectangle(innerFrameWidth, innerFrameHeight, roundness, center=true);
         roundRectangle(workareaWidth+sizeOffset, workareaHeight+sizeOffset, roundness, center=true);
     }
-
+    }
     // outer frame
+    if (partsMode == 3 || partsMode == 2)
+    {
     spacing = innerOuterFramesSpacing*2;
     outerFrameWidth = innerFrameWidth+outerFrameThickness*2+spacing;
     outerFrameHeight =  innerFrameHeight+outerFrameThickness*2+spacing;
@@ -56,6 +61,7 @@ module hoop(workareaWidth = 130, workareaHeight = 150, frameHeight = 8, innerFra
         translate([outerFrameWidth/15+ innerFrameWidth/2,0,0]) {
             handle(frameHeight);
         }
+    }
 }
 
 module handle(frameHeight)
