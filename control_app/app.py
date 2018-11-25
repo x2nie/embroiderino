@@ -177,6 +177,8 @@ class ControlAppGUI:
         self.distancesList = []
         self.distanceTraveled = 0
         self.positionResponseRegex = re.compile("X:(\-?\d+\.\d+),Y:(\-?\d+\.\d+)")
+        self.machineSetups = {}
+        self.currentSetupName = None
         self.workAreaSize = [100,100]
         self.workAreaOrigin = [0,0]
         
@@ -263,38 +265,74 @@ class ControlAppGUI:
         Label(machineFrame, text="width " ).grid(row=0, column=0, sticky=N)
         workareaWidth = Entry(machineFrame, text="1")
         workareaWidth.grid(row=0,column=1)
-        workareaWidth.delete(0, END)
-        workareaWidth.insert(0, str(self.workAreaSize[0]))
         Label(machineFrame, text="height " ).grid(row=2, column=0, sticky=N)
         workareaHeight = Entry(machineFrame, text="2")
         workareaHeight.grid(row=2,column=1)
-        workareaHeight.delete(0, END)
-        workareaHeight.insert(0, str(self.workAreaSize[1]))
-        
         hoopFrame = LabelFrame(frame, text="Machine hoop origin (mm)", relief=RIDGE)
         hoopFrame.grid()
         Label(hoopFrame, text="X " ).grid(row=0, column=0, sticky=N)
         workareaOriginX = Entry(hoopFrame, text="3")
         workareaOriginX.grid(row=0,column=1)
-        workareaOriginX.delete(0, END)
-        workareaOriginX.insert(0, str(self.workAreaOrigin[0]))
         Label(hoopFrame, text="Y " ).grid(row=2, column=0, sticky=N)
         workareaOriginY = Entry(hoopFrame, text="4")
         workareaOriginY.grid(row=2,column=1)
-        workareaOriginY.delete(0, END)
-        workareaOriginY.insert(0, str(self.workAreaOrigin[1]))
         Label(hoopFrame, text="Setup name " ).grid(row=3, column=0, sticky=N)
         setupName = Entry(hoopFrame, text="Setup1")
         setupName.grid(row=3,column=1)
         
-        ttk.Combobox(frame,  values=["A", "B"]).grid(row=2, column=0)
-        addSetupButton = Button(frame, relief=RAISED, command=None, text="Add setup").grid(row=2, column=1)
-        rmSetupButton = Button(frame, relief=RAISED, command=None, text="Remove setup").grid(row=2, column=2)
+        def setupSelected(event = None):
+            if event:
+                selectedSetupName = setupsCombo.get()
+            else:
+                selectedSetupName = self.currentSetupName
+                
+            workareaWidth.delete(0, END)
+            workareaWidth.insert(0, str(self.machineSetups[selectedSetupName]["workAreaSize"][0]))
+            workareaHeight.delete(0, END)
+            workareaHeight.insert(0, str(self.machineSetups[selectedSetupName]["workAreaSize"][1]))
+            workareaOriginX.delete(0, END)
+            workareaOriginX.insert(0, str(self.machineSetups[selectedSetupName]["workAreaOrigin"][0]))
+            workareaOriginY.delete(0, END)
+            workareaOriginY.insert(0, str(self.machineSetups[selectedSetupName]["workAreaOrigin"][1]))
+            setupName.delete(0, END)
+            setupName.insert(0, selectedSetupName)
+        setupSelected()
+            
+        setupsCombo = ttk.Combobox(frame, values=list(self.machineSetups.keys()), state="readonly")
+        setupsCombo.grid(row=2, column=0)
+        setupsCombo.current(setupsCombo['values'].index(self.currentSetupName))
+        setupsCombo.bind("<<ComboboxSelected>>", setupSelected)
+        def addSettings():
+            newSetupName = setupName.get()
+            
+            if newSetupName in self.machineSetups.keys():
+                if not messagebox.askyesno("Machine setup exists","Machine setup with this name exists. Overwrite?"):
+                    return
+            newSetup = {
+                        "workAreaSize": (int(workareaWidth.get()), int(workareaHeight.get())), 
+                        "workAreaOrigin": (int(workareaOriginX.get()), int(workareaOriginY.get()))
+                       }
+            self.machineSetups[newSetupName] = newSetup
+            setupsCombo['values'] =  list(self.machineSetups.keys())
+                
+            
+        Button(frame, relief=RAISED, command=addSettings, text="Add setup").grid(row=2, column=1)
+        def removeSetup():
+            self.machineSetups.pop(setupsCombo.get(), None)
+            options = list(self.machineSetups.keys())
+            setupsCombo['values'] =  options
+            if len(options) > 0:
+                self.currentSetupName = list(self.machineSetups.keys())[0]
+                setupsCombo.current(0)
+                setupSelected(1)
+        Button(frame, relief=RAISED, command=removeSetup, text="Remove setup").grid(row=2, column=2)
         
         def saveSettings():
             try:
-                self.workAreaSize = (int(workareaWidth.get()), int(workareaHeight.get()))
-                self.workAreaOrigin = (int(workareaOriginX.get()), int(workareaOriginY.get()))
+                if len(setupsCombo.get()) > 0:
+                    self.workAreaSize = (int(workareaWidth.get()), int(workareaHeight.get()))
+                    self.workAreaOrigin = (int(workareaOriginX.get()), int(workareaOriginY.get()))
+                    self.currentSetupName = setupsCombo.get()
             except:
                 messagebox.showerror("Invalid numeric values","Please provide correct workarea values!")
                 return
@@ -307,21 +345,23 @@ class ControlAppGUI:
             self.canvas.on_resize(tmp)
             
         Button(frame, text="Save", command=saveSettings, width=10).grid(row=3, column=3)
-        Button(frame, text="Cancel", command=lambda: tl.destroy(), width=10).grid(row=3, column=2)
+        Button(frame, text="Close", command=lambda: tl.destroy(), width=10).grid(row=3, column=2)
         
     def loadSettings(self):
         try:
             with open(self.SETTINGSFNAME, "rb") as f:
                 data = pickle.load(f)
-            self.workAreaSize = data["workAreaSize"]
-            self.workAreaOrigin = data["workAreaOrigin"]
+            self.machineSetups = data["machineSetups"]
+            self.currentSetupName = data["currentSetupName"]
+            self.workAreaSize = self.machineSetups[self.currentSetupName]["workAreaSize"]
+            self.workAreaOrigin = self.machineSetups[self.currentSetupName]["workAreaOrigin"]
         except Exception as e:
             print ("Unable to restore program settings:", str(e))
         
     def storeSettings(self):
         with open(self.SETTINGSFNAME, "wb") as f:
             try:
-                data = {"workAreaSize": self.workAreaSize, "workAreaOrigin": self.workAreaOrigin}
+                data = {"machineSetups": self.machineSetups, "currentSetupName": self.currentSetupName}
                 pickle.dump(data, f)
             except Exception as e:
                 print ("Error while saving settings:", str(e))
