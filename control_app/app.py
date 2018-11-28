@@ -6,10 +6,12 @@ import tkinter.ttk as ttk
 from tkinter import LEFT, TOP, BOTTOM, N, YES, W,SUNKEN,X, HORIZONTAL, DISABLED, NORMAL, RAISED, FLAT, RIDGE, END
 from path_preview import ResizingCanvas, load_gcode_file, save_gcode_file, load_csv_file, translate_toolpath, rotate_toolpath, reflect_toolpath, scale_toolpath, toolpath_border_points, toolpath_info, _from_rgb
 from collections import namedtuple
-import copy, re, math, time, pickle
+import copy, re, math, time, pickle, sys
 
-#import control_serial_mockup as serial
-import control_serial as serial
+if len(sys.argv) > 1 and sys.argv[1] == "debug":
+    import control_serial_mockup as serial
+else:
+    import control_serial as serial
 
 class ControlAppGUI:
     def __init__(self, master):
@@ -108,24 +110,34 @@ class ControlAppGUI:
         self.trimCheck.select()
                 
         progressFrame = Frame(tab1)
-        Label(progressFrame, text="Tool changes: ", bd=1).grid(row=0,column=0)
+        Label(progressFrame, text="Tool changes: ", bd=1).grid(row=0,column=0, pady = (10, 1))
         self.toolChangesLabel = Label(progressFrame, text="0/0", bd=1, relief=SUNKEN)
         self.toolChangesLabel.grid(row=1,column=0)
         
-        Label(progressFrame, text="Tool points: ", bd=1).grid(row=0,column=2)
+        Label(progressFrame, text="Tool points: ", bd=1).grid(row=0,column=2, pady = (10, 1))
         self.toolPointsLabel = Label(progressFrame, text="0/0", bd=1, relief=SUNKEN)
         self.toolPointsLabel.grid(row=1,column=2)
         
-        Label(progressFrame, text="Estimated endtime: ", bd=1).grid(row=0,column=4)
+        Label(progressFrame, text="Estimated endtime: ", bd=1).grid(row=0,column=4, pady = (10, 1))
         self.timeLabel = Label(progressFrame, text="0/0", bd=1, relief=SUNKEN)
         self.timeLabel.grid(row=1,column=4)
         progressFrame.grid(row=5,column=0, columnspan=3)
         
-        Label(tab1, text="SPM speed limit: ", bd=1).grid(row=6, column=0)
+        colorsFrame = Frame(tab1, bd=1)
+        colorsFrame.grid(row=6, column=0, columnspan=3, pady = (10, 1))
+        Label(colorsFrame, text="Current color: ", bd=1).pack(side=LEFT)
+        self.currentColorIndicator = Label(colorsFrame, text="    ", relief=RAISED, bd=1)
+        self.currentColorIndicator.pack(side=LEFT, padx=(1,40))
+        Label(colorsFrame, text="Next color: ", bd=1).pack(side=LEFT, padx=2)
+        self.nextColorIndicator = Label(colorsFrame, text="    ", relief=RAISED, bd=1)
+        self.nextColorIndicator.pack(side=LEFT)
+        
+        Label(tab1, text="SPM speed limit: ", bd=1).grid(row=7, column=0)
         self.speedSlider = Scale(tab1, from_=80, to=800, command=None, orient=HORIZONTAL,length=200)
         self.speedSlider.set(400)
         self.speedSlider.bind("<ButtonRelease-1>", lambda _: serial.queue_command("M222 S%d\n" % self.speedSlider.get(), priority = -1))
-        self.speedSlider.grid(row=6, column=1, columnspan=2)
+        self.speedSlider.grid(row=7, column=1, columnspan=2)
+        
 
         # PATH TAB
         tab2.grid_columnconfigure(0, weight=1)
@@ -231,6 +243,9 @@ class ControlAppGUI:
         if points_count > 2:
             self.testButton.config(state=NORMAL)
             self.startButton.config(state=NORMAL)
+            # prepare color indicators
+            self.currentColorIndicator.configure(background=self.currentColor)
+            self.currentColorIndicator.configure(background=None)
             # center loaded path
             rectangle = toolpath_border_points(self.commands)
             rwidth = rectangle[2][0] - rectangle[0][0]
@@ -451,6 +466,7 @@ class ControlAppGUI:
             if not trim:
                 self.currentColor = _from_rgb((point[1], point[2], point[3]))
                 self.currentToolChange += 1
+                self.currentColorIndicator.configure(background=self.currentColor)
                 self.toolChangesLabel.config(text="%d/%d" % (self.currentToolChange, self.toolChangesTotal))
                 # pause enabled or not
                 if self.pauseOnToolChange.get() == 1:
@@ -474,6 +490,7 @@ class ControlAppGUI:
             # pause on color change
             if "M6" == point[0]:
                 serial.queue_command("M6\n", lambda _, index = i: progressPauseCallback(index))
+                self.nextColorIndicator.configure(background=_from_rgb((point[1], point[2], point[3])))
                 break
             # pause on trim
             elif "G12" == point[0]:
