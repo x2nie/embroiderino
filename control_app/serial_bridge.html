@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Serial Bridge</title>
+</head>
+<body>
+    <h1>Serial Bridge</h1>
+    <button id="connect">Connect to Serial Port</button>
+    <pre id="output"></pre>
+
+    <script>
+        let port;
+        let reader;
+        const outputElement = document.getElementById('output');
+
+        document.getElementById('connect').addEventListener('click', async () => {
+            port = await navigator.serial.requestPort();
+            await port.open({ baudRate: 9600 });
+
+            reader = port.readable.getReader();
+
+            readLoop();
+        });
+
+        async function readLoop() {
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) {
+                    reader.releaseLock();
+                    break;
+                }
+                const textDecoder = new TextDecoder();
+                outputElement.textContent += textDecoder.decode(value);
+            }
+        }
+    </script>
+</body>
+</html>

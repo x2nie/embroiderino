@@ -1,0 +1,29 @@
+run socat:
+    > socat -d -d pty,raw,echo=0 pty,raw,echo=0
+    2024/07/30 17:56:18 socat[3901] N PTY is /dev/pts/1
+    2024/07/30 17:56:18 socat[3901] N PTY is /dev/pts/2
+    2024/07/30 17:56:18 socat[3901] N starting data transfer loop with FDs [5,5] and [7,7]
+
+
+listen a side:
+    > socat /dev/pts/2 -
+
+test another side:
+    > echo "hello uart" > /dev/pts/1
+
+SYMLINK
+    > sudo ln -s /dev/pts/7 /dev/ttyS4
+    > sudo chmod 666 /dev/ttyS4
+
+
+OPEN CLIENT:
+    > python3.10 serial_bridge.py
+
+OPEN BROWSER:
+    http://127.0.0.1:5500/serial_bridge2.html
+
+open App:
+    > python3.11 app.py 
+    test: 
+        set baudrate = 9600
+        click CONNECT button
