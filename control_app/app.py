@@ -232,8 +232,12 @@ class ControlAppGUI:
     def OpenCsvFile(self):
         if self.isJobRunning:
             return
-        with filedialog.askopenfile(filetypes = (("Comma separated values","*.csv"),) ) as f:
+        # with filedialog.askopenfile(filetypes = (("Comma separated values","*.csv"),) ) as f: #? failed open embird
+        filename = filedialog.askopenfilename(filetypes = (("Comma separated values","*.csv"),) )
+        if filename: 
+            f = open(filename, 'r', encoding='utf-8', errors='ignore')
             self.commands = load_csv_file(f)
+            f.close()
             self.FinishLoading()
     def SaveCsvFile(self):
         pass
