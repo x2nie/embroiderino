@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Embroidery Preview</title>
+    <style>
+        canvas {
+            border: 1px solid black;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="embroideryCanvas" width="500" height="500"></canvas>
+    <script>
+        // Fungsi untuk mengonversi mm ke piksel
+        function mmToPx(mm) {
+            const ppi = 96; // Piksel per inci, biasanya 96
+            const inchPerMm = 25.4; // 1 inci = 25.4 mm
+            return (mm * ppi) / inchPerMm;
+        }
+
+        // Dapatkan elemen canvas dan context-nya
+        const canvas = document.getElementById('embroideryCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Fungsi untuk menggambar garis dengan gradasi
+        function drawGradientLine(x1, y1, x2, y2, width, color1, color2) {
+            // Buat gradasi linear
+            const gradient = ctx.createLinearGradient(x1, y1, x2, y2);
+            gradient.addColorStop(0, color1);
+            gradient.addColorStop(1, color2);
+            
+            // Set properti garis
+            ctx.lineWidth = width;
+            ctx.strokeStyle = gradient;
+            ctx.lineCap = 'round'; // Buat ujung garis bulat
+            
+            // Gambar garis
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+        }
+
+        // Ukuran dalam mm
+        const startMm = { x: 10, y: 10 }; // titik awal dalam mm
+        const endMm = { x: 100, y: 100 }; // titik akhir dalam mm
+        const lineWidthMm = 0.6; // lebar garis dalam mm
+
+        // Konversi ukuran ke piksel
+        const startPx = { x: mmToPx(startMm.x), y: mmToPx(startMm.y) };
+        const endPx = { x: mmToPx(endMm.x), y: mmToPx(endMm.y) };
+        const lineWidthPx = mmToPx(lineWidthMm);
+
+        // Gambar garis dengan gradasi
+        drawGradientLine(startPx.x, startPx.y, endPx.x, endPx.y, lineWidthPx, 'blue', 'lightblue');
+
+        // Gambar lebih banyak garis untuk efek bordir
+        drawGradientLine(startPx.x + 20, startPx.y, endPx.x + 20, endPx.y, lineWidthPx, 'red', 'pink');
+        drawGradientLine(startPx.x + 40, startPx.y, endPx.x + 40, endPx.y, lineWidthPx, 'green', 'lightgreen');
+    </script>
+</body>
+</html>
